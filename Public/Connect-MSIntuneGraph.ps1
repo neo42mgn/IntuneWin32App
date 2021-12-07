@@ -37,16 +37,19 @@ function Connect-MSIntuneGraph {
     param(
         [parameter(Mandatory = $true, ParameterSetName = "Interactive", HelpMessage = "Specify the tenant name or ID, e.g. tenant.onmicrosoft.com or <GUID>.")]
         [parameter(Mandatory = $true, ParameterSetName = "DeviceCode")]
+        [parameter(Mandatory = $true, ParameterSetName = "Certificate")]
         [ValidateNotNullOrEmpty()]
         [string]$TenantID,
         
         [parameter(Mandatory = $false, ParameterSetName = "Interactive", HelpMessage = "Application ID (Client ID) for an Azure AD service principal. Uses by default the 'Microsoft Intune PowerShell' service principal Application ID.")]
         [parameter(Mandatory = $false, ParameterSetName = "DeviceCode")]
+        [parameter(Mandatory = $false, ParameterSetName = "Certificate")]
         [ValidateNotNullOrEmpty()]
         [string]$ClientID = "d1ddf0e4-d672-4dae-b554-9d5bdfd93547",
 
         [parameter(Mandatory = $false, ParameterSetName = "Interactive", HelpMessage = "Specify the Redirect URI (also known as Reply URL) of the custom Azure AD service principal.")]
         [parameter(Mandatory = $false, ParameterSetName = "DeviceCode")]
+        [parameter(Mandatory = $false, ParameterSetName = "Certificate")]
         [ValidateNotNullOrEmpty()]
         [string]$RedirectUri = [string]::Empty,
 
@@ -58,7 +61,11 @@ function Connect-MSIntuneGraph {
 
         [parameter(Mandatory = $false, ParameterSetName = "Interactive", HelpMessage = "Specify to refresh an existing access token.")]
         [parameter(Mandatory = $false, ParameterSetName = "DeviceCode")]
-        [switch]$Refresh
+        [parameter(Mandatory = $false, ParameterSetName = "Certificate")]
+        [switch]$Refresh,
+
+        [parameter(Mandatory = $false, ParameterSetName = "Certificate", HelpMessage = "Specify to use a certificate for authentication.")]
+        [string]$CertThumbprint
     )
     Begin {
         # Determine the correct RedirectUri (also known as Reply URL) to use with MSAL.PS
@@ -112,9 +119,9 @@ function Connect-MSIntuneGraph {
                         $AccessTokenArguments.Add("ForceRefresh", $true)
                     }
                 }
-                "ClientSecret" {
+                "Certificate" {
                     if ($PSBoundParameters["Refresh"]) {
-                        $AccessTokenArguments.Add("ForceRefresh", $true)
+                        $AccessTokenArguments["ClientCertificate"] = Get-Item -Path "Cert:\CurrentUser\My\$CertThumbprint"
                     }
                 }
             }
@@ -127,6 +134,9 @@ function Connect-MSIntuneGraph {
                 if (-not($PSBoundParameters["Refresh"])){
                     $AccessTokenArguments.Add("DeviceCode", $true)
                 }
+            }
+            if ($PSBoundParameters["Certificate"]){
+                    $AccessTokenArguments["ClientCertificate"] = Get-Item -Path "Cert:\CurrentUser\My\$CertThumbprint"
             }
 
             try {
